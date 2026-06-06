@@ -42,7 +42,18 @@
         </label>
 
         <label class="field">
-          <span>整体字体</span>
+          <span>预设风格</span>
+          <select id="stylePreset">
+            <option value="cream">温柔奶油感</option>
+            <option value="xhsCard">小红书官方卡片</option>
+            <option value="japanMag">日系杂志</option>
+            <option value="morandi">莫兰迪手帐</option>
+            <option value="bauhaus">包豪斯重点</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>默认字体</span>
           <select id="fontPreset">
             <option value="cute">圆润可爱</option>
             <option value="hand">手写松弛</option>
@@ -60,15 +71,26 @@
           <button id="addTextBtn">加文字</button>
           <button id="addNoteBtn">加便签</button>
         </div>
+
+        <div class="button-row">
+          <button id="saveDraftBtn">保存草稿</button>
+          <button id="loadDraftBtn">载入草稿</button>
+        </div>
       </aside>
 
       <section class="stage-wrap">
         <div class="toolbar">
-          <span id="statusText">选择元素后可在右侧调整</span>
-          <button id="exportBtn" class="primary">导出 PNG</button>
+          <div class="toolbar-status">
+            <span id="statusText">选择元素后可在右侧调整</span>
+            <span id="pageStatus">第 1 / 1 页</span>
+          </div>
+          <div class="toolbar-actions">
+            <button id="addPageBtn">加一页</button>
+            <button id="exportBtn" class="primary">导出全部 PNG</button>
+          </div>
         </div>
         <div class="stage-scroll">
-          <article id="poster" class="poster" aria-label="海报画布"></article>
+          <div id="pages" class="pages" aria-label="海报页面"></div>
         </div>
       </section>
 
@@ -80,11 +102,33 @@
         </label>
         <label class="field">
           <span>字号</span>
-          <input id="fontSize" type="range" min="18" max="110" value="36" disabled />
+          <input id="fontSize" type="range" min="14" max="72" value="32" disabled />
         </label>
         <label class="field">
           <span>宽度</span>
-          <input id="boxWidth" type="range" min="120" max="980" value="420" disabled />
+          <input id="boxWidth" type="range" min="100" max="520" value="420" disabled />
+        </label>
+        <label class="field">
+          <span>小块形状</span>
+          <select id="shapeSelect" disabled>
+            <option value="plain-block">无底</option>
+            <option value="note">便签</option>
+            <option value="highlight">荧光笔</option>
+            <option value="torn">撕纸</option>
+            <option value="gray-strip">标题条</option>
+            <option value="soft-card">圆角卡片</option>
+            <option value="underline">下划线</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>小块字体</span>
+          <select id="elementFont" disabled>
+            <option value="">跟随默认</option>
+            <option value="cute">圆润可爱</option>
+            <option value="hand">手写松弛</option>
+            <option value="serif">书卷宋体</option>
+            <option value="clean">清爽黑体</option>
+          </select>
         </label>
         <div class="grid-2">
           <label class="field">

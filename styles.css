@@ -174,10 +174,27 @@ input[type="color"] {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   border: 1px solid #d8d6cf;
   border-radius: 8px;
   background: var(--panel);
   padding: 10px 12px;
+}
+
+.toolbar-status,
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.toolbar-status {
+  flex-wrap: wrap;
+}
+
+.toolbar-actions {
+  flex-shrink: 0;
 }
 
 .stage-scroll {
@@ -198,6 +215,12 @@ input[type="color"] {
   padding: 28px;
 }
 
+.pages {
+  display: grid;
+  gap: 34px;
+  justify-items: center;
+}
+
 .poster {
   position: relative;
   width: 540px;
@@ -211,6 +234,12 @@ input[type="color"] {
   background-size: 18px 18px, 22px 22px, auto;
   box-shadow: 0 14px 45px rgba(0, 0, 0, 0.18);
   transform-origin: top center;
+}
+
+.poster.active-page {
+  box-shadow:
+    0 0 0 3px #111,
+    0 14px 45px rgba(0, 0, 0, 0.18);
 }
 
 .poster.font-cute {
@@ -234,6 +263,27 @@ input[type="color"] {
     "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
 }
 
+.font-cute {
+  font-family:
+    "Yuanti SC", "YouYuan", "Microsoft YaHei UI", "Segoe Print",
+    "Comic Sans MS", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.font-hand {
+  font-family:
+    "HanziPen SC", "STXingkai", "STKaiti", "KaiTi", "LXGW WenKai",
+    "PingFang SC", "Microsoft YaHei", cursive;
+}
+
+.font-serif {
+  font-family: "Songti SC", "SimSun", "NSimSun", "Noto Serif CJK SC", serif;
+}
+
+.font-clean {
+  font-family:
+    "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
+}
+
 .item {
   position: absolute;
   user-select: none;
@@ -249,6 +299,11 @@ input[type="color"] {
   white-space: pre-wrap;
   line-height: 1.48;
   letter-spacing: 0;
+}
+
+.plain-block {
+  padding: 0;
+  background: transparent;
 }
 
 .title {
@@ -323,6 +378,20 @@ input[type="color"] {
     0% 32%,
     4% 18%
   );
+}
+
+.soft-card {
+  padding: 14px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.underline {
+  padding: 0 2px 6px;
+  border-bottom: 5px solid rgba(233, 95, 139, 0.35);
+  background: transparent;
 }
 
 .image-item {
