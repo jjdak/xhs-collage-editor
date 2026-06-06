@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "ChenYuluoyan-Thin";
+  src: url("https://cdn.jsdelivr.net/gh/Chenyu-otf/chenyuluoyan_thin@main/ChenYuluoyan-2.0-Thin.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --ink: #171717;
   --muted: #6b6b6b;
@@ -253,43 +261,43 @@ input[type="color"] {
     0 14px 45px rgba(0, 0, 0, 0.18);
 }
 
-.poster.font-cute {
-  font-family:
-    "Yuanti SC", "YouYuan", "Microsoft YaHei UI", "Segoe Print",
-    "Comic Sans MS", "PingFang SC", "Microsoft YaHei", sans-serif;
-}
-
-.poster.font-hand {
-  font-family:
-    "HanziPen SC", "STXingkai", "STKaiti", "KaiTi", "LXGW WenKai",
-    "PingFang SC", "Microsoft YaHei", cursive;
-}
-
-.poster.font-serif {
-  font-family: "Songti SC", "SimSun", "NSimSun", "Noto Serif CJK SC", serif;
-}
-
-.poster.font-clean {
-  font-family:
-    "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
-}
-
+.poster.font-cute,
 .font-cute {
   font-family:
-    "Yuanti SC", "YouYuan", "Microsoft YaHei UI", "Segoe Print",
-    "Comic Sans MS", "PingFang SC", "Microsoft YaHei", sans-serif;
+    "ZCOOL KuaiLe", "Yuanti SC", "YouYuan", "Microsoft YaHei UI",
+    "Segoe Print", "Comic Sans MS", "PingFang SC", sans-serif;
 }
 
+.poster.font-hand,
 .font-hand {
   font-family:
-    "HanziPen SC", "STXingkai", "STKaiti", "KaiTi", "LXGW WenKai",
-    "PingFang SC", "Microsoft YaHei", cursive;
+    "Ma Shan Zheng", "HanziPen SC", "STXingkai", "STKaiti", "KaiTi",
+    "LXGW WenKai", "PingFang SC", cursive;
 }
 
+.poster.font-brush,
+.font-brush {
+  font-family:
+    "Zhi Mang Xing", "STXingkai", "XingKai SC", "PingFang SC", cursive;
+}
+
+.poster.font-caoshu,
+.font-caoshu {
+  font-family:
+    "Liu Jian Mao Cao", "STCaiyun", "HanziPen SC", "PingFang SC", cursive;
+}
+
+.poster.font-luoyan,
+.font-luoyan {
+  font-family: "ChenYuluoyan-Thin", cursive;
+}
+
+.poster.font-serif,
 .font-serif {
   font-family: "Songti SC", "SimSun", "NSimSun", "Noto Serif CJK SC", serif;
 }
 
+.poster.font-clean,
 .font-clean {
   font-family:
     "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;

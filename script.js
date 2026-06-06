@@ -25,7 +25,7 @@ const PAGE_W = 540;
 const PAGE_H = 720;
 const PAGE_BOTTOM = 670;
 const SHAPES = ["plain-block", "note", "highlight", "torn", "gray-strip", "soft-card", "underline"];
-const FONT_CLASSES = ["font-cute", "font-hand", "font-serif", "font-clean"];
+const FONT_CLASSES = ["font-cute", "font-hand", "font-brush", "font-caoshu", "font-luoyan", "font-serif", "font-clean"];
 const HANDLE_DIRS = ["nw", "n", "ne", "w", "e", "sw", "s", "se"];
 const EXPORT_SCALE = 2;
 
