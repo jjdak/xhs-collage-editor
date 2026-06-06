@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>小红书拼贴海报编辑器</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="panel left-panel">
+        <div class="brand">
+          <strong>拼贴海报</strong>
+          <span>1080 x 1440</span>
+        </div>
+
+        <label class="field">
+          <span>输入文字</span>
+          <textarea id="sourceText" rows="12">期末周 | 大考 | 能量恢复
+状态差自救指南
+
+停止思考，先去行动。不要复杂的想，拥抱变化，行动了大脑就会给你提供办法。
+
+很多人会陷入“我想清楚了再开始”的误区，但事实是，很多问题你坐在那里想，只会越想越乱。
+
+难过=该运动了
+胡思乱想=该写日记了
+烦躁=该洗澡、打扮了
+压力大=该去暴汗
+焦虑=该接触大自然
+混乱=该看书</textarea>
+        </label>
+
+        <div class="button-row">
+          <button id="generateBtn" class="primary">生成版式</button>
+          <button id="shuffleBtn">换布局</button>
+        </div>
+
+        <label class="field">
+          <span>上传拼贴图片</span>
+          <input id="imageInput" type="file" accept="image/*" multiple />
+        </label>
+
+        <div class="button-row">
+          <button id="addTextBtn">加文字</button>
+          <button id="addNoteBtn">加便签</button>
+        </div>
+      </aside>
+
+      <section class="stage-wrap">
+        <div class="toolbar">
+          <span id="statusText">选择元素后可在右侧调整</span>
+          <button id="exportBtn" class="primary">导出 PNG</button>
+        </div>
+        <div class="stage-scroll">
+          <article id="poster" class="poster" aria-label="海报画布"></article>
+        </div>
+      </section>
+
+      <aside class="panel right-panel">
+        <h2>样式</h2>
+        <label class="field">
+          <span>文字内容</span>
+          <textarea id="editText" rows="5" disabled></textarea>
+        </label>
+        <label class="field">
+          <span>字号</span>
+          <input id="fontSize" type="range" min="18" max="110" value="36" disabled />
+        </label>
+        <label class="field">
+          <span>宽度</span>
+          <input id="boxWidth" type="range" min="120" max="980" value="420" disabled />
+        </label>
+        <div class="grid-2">
+          <label class="field">
+            <span>文字色</span>
+            <input id="textColor" type="color" value="#171717" disabled />
+          </label>
+          <label class="field">
+            <span>背景色</span>
+            <input id="bgColor" type="color" value="#ffffff" disabled />
+          </label>
+        </div>
+        <label class="field">
+          <span>背景透明</span>
+          <input id="bgAlpha" type="range" min="0" max="100" value="70" disabled />
+        </label>
+        <div class="button-row">
+          <button id="bringForward" disabled>上移层级</button>
+          <button id="deleteBtn" class="danger" disabled>删除</button>
+        </div>
+      </aside>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
