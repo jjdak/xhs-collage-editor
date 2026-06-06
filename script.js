@@ -208,7 +208,7 @@ function normalizeBlocks(lines) {
     blocks.push({ heading, body });
   });
 
-  if (!blocks.length) blocks.push({ heading: "", body: "停止思考，先去行动。" });
+  if (!blocks.length) return [];
   return blocks;
 }
 
@@ -613,6 +613,15 @@ function buildPoster() {
   pages.innerHTML = "";
   clearSelection(false);
   zCounter = 20;
+
+  if (!title && !blocks.length) {
+    createPage();
+    syncControls();
+    statusText.textContent = "请输入文字后点击生成";
+    autoSaveToLocal();
+    return;
+  }
+
   let page = createPage();
   let y = 28;
   const margin = 28, gap = 14, cw = 484;
@@ -621,7 +630,10 @@ function buildPoster() {
     const topEl = createText(top, "subtitle plain-block", { page, x: margin, y, w: cw, size: 21, color: palette.muted, z: 130 });
     y += renderedHeight(topEl) + 8;
   }
-  const titleEl = createText(title, "brush title-block gray-strip", { page, x: 16, y, w: 508, size: fitTitleSize(title), bg: palette.titleBg, alpha: 88, z: 200 });
+  if (title) {
+    const titleEl = createText(title, "brush title-block gray-strip", { page, x: 16, y, w: 508, size: fitTitleSize(title), bg: palette.titleBg, alpha: 88, z: 200 });
+    y += renderedHeight(titleEl) + 22;
+  }
   y += renderedHeight(titleEl) + 22;
 
   makeFlowBlocks(blocks).forEach((block) => {
