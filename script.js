@@ -634,7 +634,6 @@ function buildPoster() {
     const titleEl = createText(title, "brush title-block gray-strip", { page, x: 16, y, w: 508, size: fitTitleSize(title), bg: palette.titleBg, alpha: 88, z: 200 });
     y += renderedHeight(titleEl) + 22;
   }
-  y += renderedHeight(titleEl) + 22;
 
   makeFlowBlocks(blocks).forEach((block) => {
     splitTextToFit(block, page, PAGE_BOTTOM - 52).forEach((chunk) => {
