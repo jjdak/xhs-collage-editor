@@ -33,13 +33,28 @@
 
         <div class="button-row">
           <button id="generateBtn" class="primary">生成版式</button>
-          <button id="shuffleBtn">换布局</button>
+          <button id="clearBtn">清空画布</button>
         </div>
 
         <label class="field">
-          <span>上传拼贴图片</span>
+          <span>上传贴图</span>
           <input id="imageInput" type="file" accept="image/*" multiple />
         </label>
+
+        <label class="field">
+          <span>整体字体</span>
+          <select id="fontPreset">
+            <option value="cute">圆润可爱</option>
+            <option value="hand">手写松弛</option>
+            <option value="serif">书卷宋体</option>
+            <option value="clean">清爽黑体</option>
+          </select>
+        </label>
+
+        <div class="field">
+          <span>配色预设</span>
+          <div id="paletteList" class="palette-list"></div>
+        </div>
 
         <div class="button-row">
           <button id="addTextBtn">加文字</button>

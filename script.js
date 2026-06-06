@@ -7,26 +7,66 @@ const boxWidth = document.querySelector("#boxWidth");
 const textColor = document.querySelector("#textColor");
 const bgColor = document.querySelector("#bgColor");
 const bgAlpha = document.querySelector("#bgAlpha");
+const fontPreset = document.querySelector("#fontPreset");
+const paletteList = document.querySelector("#paletteList");
 const controls = [editText, fontSize, boxWidth, textColor, bgColor, bgAlpha];
 
 let selected = null;
-let zCounter = 10;
-let layoutSeed = 0;
+let zCounter = 20;
+let activePalette = "editorial";
 
-const demoImages = [
-  {
-    label: "书本",
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="260"><rect width="360" height="260" fill="#efe9dd"/><circle cx="262" cy="86" r="52" fill="#f7f7f7"/><rect x="75" y="72" width="210" height="124" rx="8" fill="#fff"/><path d="M92 91h81v84H92zM188 91h80v84h-80z" fill="#f6f0e8"/><path d="M177 88v91" stroke="#999" stroke-width="2"/><text x="103" y="139" font-size="30" font-family="sans-serif" font-weight="700" fill="#111">孩子</text><text x="104" y="166" font-size="15" font-family="sans-serif" fill="#333">为你自己读书</text><circle cx="240" cy="70" r="8" fill="#111"/><circle cx="282" cy="70" r="8" fill="#111"/><path d="M251 95q11 13 24 0" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`,
+const palettes = {
+  editorial: {
+    name: "杂志黑粉",
+    paper: "#fffdfb",
+    ink: "#171717",
+    muted: "#6d6963",
+    titleBg: "#e4dfd4",
+    noteBg: "#ffe4ec",
+    highlightBg: "#fff0a8",
+    accent: "#e95f8b",
   },
-  {
-    label: "便当",
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="330"><rect width="300" height="330" fill="#272727"/><rect x="52" y="68" width="178" height="135" rx="14" fill="#d9d2bb"/><rect x="68" y="83" width="146" height="104" rx="10" fill="#f7f0d8"/><circle cx="202" cy="222" r="38" fill="#7c2033"/><circle cx="170" cy="238" r="30" fill="#e1cb6e"/><rect x="32" y="210" width="68" height="95" rx="26" fill="#d6e4ef"/><rect x="24" y="195" width="84" height="25" rx="12" fill="#bb1d2d"/></svg>`,
+  morandi: {
+    name: "莫兰迪",
+    paper: "#fbfaf6",
+    ink: "#2b2d2f",
+    muted: "#7d817b",
+    titleBg: "#d8ddd3",
+    noteBg: "#eadbd6",
+    highlightBg: "#e9dfb7",
+    accent: "#9c6f64",
   },
-  {
-    label: "便签",
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect width="320" height="240" fill="#f2e9ee"/><rect x="40" y="44" width="240" height="150" rx="6" fill="#fffafc"/><path d="M58 78h160M58 112h184M58 146h140" stroke="#9f9f9f" stroke-width="4" stroke-linecap="round"/><text x="70" y="174" font-size="22" font-family="sans-serif" fill="#111">先做一分钟</text></svg>`,
+  bauhaus: {
+    name: "包豪斯",
+    paper: "#fffaf0",
+    ink: "#111111",
+    muted: "#55524b",
+    titleBg: "#f2d04f",
+    noteBg: "#f5d7d7",
+    highlightBg: "#b9d7ea",
+    accent: "#d64032",
   },
-];
+  macaron: {
+    name: "马卡龙",
+    paper: "#fffefd",
+    ink: "#25313c",
+    muted: "#71808c",
+    titleBg: "#d8eff0",
+    noteBg: "#ffe0ee",
+    highlightBg: "#fff1b6",
+    accent: "#7cc7c2",
+  },
+  gallery: {
+    name: "画廊中性",
+    paper: "#faf7f1",
+    ink: "#1d1b18",
+    muted: "#777068",
+    titleBg: "#d6d0c5",
+    noteBg: "#efe7dc",
+    highlightBg: "#d7e4d2",
+    accent: "#8e4f45",
+  },
+};
 
 function parseInput(text) {
   const lines = text
@@ -71,7 +111,7 @@ function applyBox(el, options) {
     w = 220,
     h,
     size = 28,
-    color = "#171717",
+    color = currentPalette().ink,
     bg,
     alpha = 100,
     z,
@@ -82,11 +122,7 @@ function applyBox(el, options) {
   if (h) el.style.height = `${h}px`;
   el.style.fontSize = `${size}px`;
   el.style.color = color;
-  if (bg) {
-    el.dataset.bgHex = bg;
-    el.dataset.bgAlpha = String(alpha);
-    el.style.backgroundColor = hexToRgba(bg, alpha / 100);
-  }
+  if (bg) setElementBg(el, bg, alpha);
   el.style.zIndex = String(z || zCounter++);
 }
 
@@ -139,7 +175,7 @@ function select(el) {
   editText.value = isText ? selected.textContent : "";
   fontSize.value = parseInt(selected.style.fontSize, 10) || 28;
   boxWidth.value = parseInt(selected.style.width, 10) || 220;
-  textColor.value = rgbToHex(selected.style.color) || "#171717";
+  textColor.value = rgbToHex(selected.style.color) || currentPalette().ink;
   bgColor.value = selected.dataset.bgHex || "#ffffff";
   bgAlpha.value = selected.dataset.bgAlpha || "0";
   document.querySelector("#bringForward").disabled = false;
@@ -159,66 +195,132 @@ function clearSelection() {
 
 function buildPoster() {
   const { top, title, paragraphs, list } = parseInput(sourceText.value);
+  const palette = currentPalette();
   poster.innerHTML = "";
   selected = null;
-  zCounter = 10;
+  zCounter = 20;
+  applyPosterTheme();
 
-  if (layoutSeed % 2 === 0) {
-    createImage(svgDataUrl(demoImages[0].svg), "photo", { x: 332, y: 64, w: 156, h: 118 });
-    createImage(svgDataUrl(demoImages[1].svg), "photo", { x: 42, y: 310, w: 170, h: 188 });
-    createImage(svgDataUrl(demoImages[2].svg), "photo", { x: 350, y: 550, w: 142, h: 106 });
-    createText(top, "subtitle", { x: 68, y: 285, w: 405, size: 30 });
-    createText(title, "brush", { x: 18, y: 344, w: 505, size: 61, bg: "#e7e2d7", alpha: 85 });
-    createText(paragraphs[0] || "先行动，再思考。", "highlight", { x: 22, y: 36, w: 310, size: 26, bg: "#fff1a5", alpha: 72 });
-    createText(paragraphs[1] || "很多问题会在行动里变清楚。", "note", { x: 22, y: 120, w: 320, size: 24, bg: "#ffddea", alpha: 68 });
-    createText((list.length ? list : ["难过=该运动了", "焦虑=该接触大自然"]).join("\n"), "torn", {
-      x: 242,
-      y: 302,
-      w: 260,
-      size: 26,
-      bg: "#ffffff",
-      alpha: 100,
-    });
-    createText(paragraphs.slice(2).join("\n\n") || "把想法写下来，不要让它们只在脑子里打转。", "note", {
-      x: 28,
-      y: 545,
-      w: 300,
-      size: 22,
-      bg: "#ffe2ec",
-      alpha: 68,
-    });
-  } else {
-    createText(title, "brush gray-strip", { x: 28, y: 28, w: 290, size: 42, bg: "#cfcfca", alpha: 88 });
-    createText(paragraphs[0] || "停止思考，先去行动。", "highlight", { x: 32, y: 116, w: 450, size: 25, bg: "#fff1a5", alpha: 70 });
-    createImage(svgDataUrl(demoImages[0].svg), "photo", { x: 333, y: 80, w: 170, h: 126 });
-    createText(paragraphs[1] || "行动起来以后，大脑才会为了解决问题而运转。", "note", {
-      x: 6,
-      y: 190,
-      w: 315,
-      size: 24,
-      bg: "#ffe2ec",
+  let y = 28;
+  const margin = 28;
+  const gap = 14;
+  const contentWidth = 484;
+
+  const topH = estimateTextHeight(top, 25, contentWidth, 1.25, 16);
+  createText(top, "subtitle", {
+    x: margin,
+    y,
+    w: contentWidth,
+    size: 25,
+    color: palette.muted,
+    z: 130,
+  });
+  y += topH + 8;
+
+  const titleSize = fitTitleSize(title);
+  const titleH = estimateTextHeight(title, titleSize, contentWidth, 1.08, 24);
+  createText(title, "brush title-block", {
+    x: 16,
+    y,
+    w: 508,
+    size: titleSize,
+    bg: palette.titleBg,
+    alpha: 88,
+    z: 200,
+  });
+  y += titleH + 22;
+
+  const intro = paragraphs[0] || "停止思考，先去行动。不要复杂的想，拥抱变化，行动了大脑就会给你提供办法。";
+  const introH = estimateTextHeight(intro, 26, contentWidth, 1.45, 20);
+  createText(intro, "highlight", {
+    x: margin,
+    y,
+    w: contentWidth,
+    size: 26,
+    bg: palette.highlightBg,
+    alpha: 76,
+  });
+  y += introH + gap;
+
+  const bodyBlocks = paragraphs.slice(1);
+  if (bodyBlocks[0]) {
+    y = addFlowBlock(bodyBlocks[0], "note", y, {
+      x: margin,
+      w: contentWidth,
+      size: 23,
+      bg: palette.noteBg,
       alpha: 70,
     });
-    createImage(svgDataUrl(demoImages[1].svg), "photo", { x: 42, y: 344, w: 170, h: 190 });
-    createText((list.length ? list : ["难过=该运动了", "混乱=该看书"]).join("\n"), "torn", {
-      x: 240,
-      y: 320,
-      w: 260,
-      size: 24,
+  }
+
+  if (list.length) {
+    const listText = list.join("\n");
+    y = addFlowBlock(listText, "torn", y, {
+      x: 74,
+      w: 392,
+      size: list.length > 6 ? 22 : 25,
       bg: "#ffffff",
       alpha: 100,
     });
-    createText(top, "brush gray-strip", { x: 10, y: 584, w: 318, size: 32, bg: "#cfcfca", alpha: 88 });
-    createText(paragraphs.slice(2).join("\n\n") || "真正的休息，是让大脑从被动接收里出来。", "note", {
-      x: 24,
-      y: 634,
-      w: 330,
-      size: 20,
-      bg: "#ffe2ec",
-      alpha: 72,
-    });
-    createImage(svgDataUrl(demoImages[2].svg), "photo", { x: 364, y: 602, w: 138, h: 104 });
   }
+
+  bodyBlocks.slice(1).forEach((paragraph, index) => {
+    const isLast = index === bodyBlocks.length - 2;
+    y = addFlowBlock(paragraph, isLast ? "note" : "plain-block", y, {
+      x: margin,
+      w: contentWidth,
+      size: 21,
+      bg: isLast ? palette.noteBg : "#ffffff",
+      alpha: isLast ? 64 : 0,
+    });
+  });
+
+  addAccentDots(Math.min(y + 6, 690), palette.accent);
+  statusText.textContent = "已生成无内置图片版式，贴图请手动上传";
+}
+
+function addFlowBlock(text, className, y, options) {
+  const height = estimateTextHeight(
+    text,
+    options.size,
+    options.w,
+    className === "torn" ? 1.48 : 1.52,
+    className === "torn" ? 44 : 24,
+  );
+  if (y + height > 692) {
+    const scale = Math.max(0.82, (692 - y) / height);
+    options.size = Math.floor(options.size * scale);
+  }
+  createText(text, className, { ...options, y });
+  return y + Math.min(height, 692 - y) + 16;
+}
+
+function estimateTextHeight(text, size, width, lineHeight = 1.45, padding = 0) {
+  const charsPerLine = Math.max(6, Math.floor(width / (size * 0.9)));
+  const lines = text
+    .split("\n")
+    .map((line) => Math.max(1, Math.ceil(line.length / charsPerLine)))
+    .reduce((sum, lineCount) => sum + lineCount, 0);
+  return Math.ceil(lines * size * lineHeight + padding);
+}
+
+function fitTitleSize(title) {
+  if (title.length <= 7) return 62;
+  if (title.length <= 10) return 54;
+  return 46;
+}
+
+function addAccentDots(y, color) {
+  const dotY = Math.min(y, 682);
+  [32, 52, 72].forEach((x) => {
+    const dot = document.createElement("div");
+    dot.className = "item caption-dot";
+    dot.style.left = `${x}px`;
+    dot.style.top = `${dotY}px`;
+    dot.style.backgroundColor = color;
+    dot.style.zIndex = "15";
+    poster.append(dot);
+  });
 }
 
 function addUploadedImages(files) {
@@ -261,7 +363,7 @@ async function exportPng() {
     canvas.width = 1080;
     canvas.height = 1440;
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = currentPalette().paper;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
     const link = document.createElement("a");
@@ -272,8 +374,63 @@ async function exportPng() {
   image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-function svgDataUrl(svg) {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+function renderPalettes() {
+  paletteList.innerHTML = "";
+  Object.entries(palettes).forEach(([key, palette]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `palette-button ${key === activePalette ? "active" : ""}`;
+    button.innerHTML = `<span>${palette.name}</span><span class="swatches">${[
+      palette.ink,
+      palette.titleBg,
+      palette.noteBg,
+      palette.highlightBg,
+      palette.accent,
+    ]
+      .map((color) => `<span class="swatch" style="background:${color}"></span>`)
+      .join("")}</span>`;
+    button.addEventListener("click", () => {
+      activePalette = key;
+      renderPalettes();
+      applyPaletteToPoster();
+    });
+    paletteList.append(button);
+  });
+}
+
+function applyPaletteToPoster() {
+  const palette = currentPalette();
+  applyPosterTheme();
+  poster.querySelectorAll(".text-item").forEach((el) => {
+    el.style.color = palette.ink;
+    if (el.classList.contains("title-block")) setElementBg(el, palette.titleBg, 88);
+    if (el.classList.contains("note")) setElementBg(el, palette.noteBg, 70);
+    if (el.classList.contains("highlight")) setElementBg(el, palette.highlightBg, 76);
+  });
+  poster.querySelectorAll(".caption-dot").forEach((dot) => {
+    dot.style.backgroundColor = palette.accent;
+  });
+  if (selected) select(selected);
+}
+
+function applyPosterTheme() {
+  const palette = currentPalette();
+  poster.style.backgroundColor = palette.paper;
+}
+
+function applyFontPreset() {
+  poster.classList.remove("font-cute", "font-hand", "font-serif", "font-clean");
+  poster.classList.add(`font-${fontPreset.value}`);
+}
+
+function currentPalette() {
+  return palettes[activePalette];
+}
+
+function setElementBg(el, bg, alpha) {
+  el.dataset.bgHex = bg;
+  el.dataset.bgAlpha = String(alpha);
+  el.style.backgroundColor = hexToRgba(bg, alpha / 100);
 }
 
 function hexToRgba(hex, alpha) {
@@ -286,10 +443,10 @@ function hexToRgba(hex, alpha) {
 }
 
 function rgbToHex(value) {
-  if (!value) return "#171717";
+  if (!value) return currentPalette().ink;
   if (value.startsWith("#")) return value;
   const match = value.match(/\d+/g);
-  if (!match) return "#171717";
+  if (!match) return currentPalette().ink;
   return `#${match
     .slice(0, 3)
     .map((n) => Number(n).toString(16).padStart(2, "0"))
@@ -297,23 +454,38 @@ function rgbToHex(value) {
 }
 
 document.querySelector("#generateBtn").addEventListener("click", buildPoster);
-document.querySelector("#shuffleBtn").addEventListener("click", () => {
-  layoutSeed += 1;
-  buildPoster();
+document.querySelector("#clearBtn").addEventListener("click", () => {
+  poster.innerHTML = "";
+  clearSelection();
 });
 document.querySelector("#imageInput").addEventListener("change", (event) => {
   addUploadedImages(event.target.files);
 });
 document.querySelector("#addTextBtn").addEventListener("click", () => {
-  createText("双击右侧修改文字", "note", { x: 80, y: 90, w: 260, size: 26, bg: "#ffe2ec", alpha: 70 });
+  createText("在右侧修改文字", "note", {
+    x: 80,
+    y: 90,
+    w: 260,
+    size: 26,
+    bg: currentPalette().noteBg,
+    alpha: 70,
+  });
 });
 document.querySelector("#addNoteBtn").addEventListener("click", () => {
-  createText("新的便签\n可以拖到任意位置", "torn", { x: 145, y: 160, w: 245, size: 24, bg: "#ffffff", alpha: 100 });
+  createText("新的便签\n可以拖到任意位置", "torn", {
+    x: 145,
+    y: 160,
+    w: 245,
+    size: 24,
+    bg: "#ffffff",
+    alpha: 100,
+  });
 });
 document.querySelector("#exportBtn").addEventListener("click", exportPng);
 document.querySelector("#bringForward").addEventListener("click", () => {
   if (!selected) return;
-  selected.style.zIndex = String(zCounter++);
+  const isTitle = selected.classList.contains("title-block");
+  selected.style.zIndex = String(isTitle ? 200 : Math.min(zCounter++, 190));
 });
 document.querySelector("#deleteBtn").addEventListener("click", () => {
   if (!selected) return;
@@ -335,14 +507,15 @@ textColor.addEventListener("input", () => {
 });
 bgColor.addEventListener("input", () => {
   if (!selected) return;
-  selected.dataset.bgHex = bgColor.value;
-  selected.style.backgroundColor = hexToRgba(bgColor.value, Number(bgAlpha.value) / 100);
+  setElementBg(selected, bgColor.value, Number(bgAlpha.value));
 });
 bgAlpha.addEventListener("input", () => {
   if (!selected) return;
-  selected.dataset.bgAlpha = bgAlpha.value;
-  selected.style.backgroundColor = hexToRgba(bgColor.value, Number(bgAlpha.value) / 100);
+  setElementBg(selected, bgColor.value, Number(bgAlpha.value));
 });
+fontPreset.addEventListener("change", applyFontPreset);
 poster.addEventListener("click", clearSelection);
 
+renderPalettes();
+applyFontPreset();
 buildPoster();
