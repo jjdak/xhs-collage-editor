@@ -60,13 +60,16 @@ textarea:disabled {
 .app-shell {
   display: grid;
   grid-template-columns: 300px minmax(520px, 1fr) 280px;
+  grid-template-rows: 1fr;
   gap: 16px;
   height: 100vh;
   padding: 16px;
+  overflow: hidden;
 }
 
 .panel {
-  overflow: auto;
+  overflow-y: auto;
+  min-height: 0;
   border: 1px solid #d8d6cf;
   border-radius: 8px;
   background: var(--panel);
@@ -113,6 +116,12 @@ textarea {
 
 input[type="range"] {
   width: 100%;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
 }
 
 input[type="color"] {
@@ -165,6 +174,7 @@ input[type="color"] {
 
 .stage-wrap {
   min-width: 0;
+  min-height: 0;
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 12px;
@@ -199,6 +209,7 @@ input[type="color"] {
 
 .stage-scroll {
   overflow: auto;
+  min-height: 0;
   border: 1px solid #d8d6cf;
   border-radius: 8px;
   background:
@@ -426,6 +437,26 @@ input[type="color"] {
   border-radius: 50%;
   background: #ef77a6;
 }
+
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #1677ff;
+  border: 1.5px solid #fff;
+  border-radius: 2px;
+  z-index: 999;
+  touch-action: none;
+}
+
+.rh-nw  { cursor: nwse-resize; }
+.rh-n   { cursor: ns-resize; }
+.rh-ne  { cursor: nesw-resize; }
+.rh-w   { cursor: ew-resize; }
+.rh-e   { cursor: ew-resize; }
+.rh-sw  { cursor: nesw-resize; }
+.rh-s   { cursor: ns-resize; }
+.rh-se  { cursor: nwse-resize; }
 
 @media (max-width: 1040px) {
   .app-shell {

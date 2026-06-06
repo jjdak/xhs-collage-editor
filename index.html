@@ -86,6 +86,8 @@
             <span id="pageStatus">第 1 / 1 页</span>
           </div>
           <div class="toolbar-actions">
+            <button id="undoBtn" disabled title="撤销 (Ctrl+Z)">↩ 撤销</button>
+            <button id="redoBtn" disabled title="重做 (Ctrl+Y)">↪ 重做</button>
             <button id="addPageBtn">加一页</button>
             <button id="exportBtn" class="primary">导出全部 PNG</button>
           </div>
@@ -144,6 +146,10 @@
         <label class="field">
           <span>背景透明</span>
           <input id="bgAlpha" type="range" min="0" max="100" value="70" disabled />
+        </label>
+        <label class="field">
+          <span>加粗</span>
+          <input id="boldToggle" type="checkbox" disabled />
         </label>
         <div class="button-row">
           <button id="bringForward" disabled>上移层级</button>
