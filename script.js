@@ -13,28 +13,21 @@ const stylePreset = document.querySelector("#stylePreset");
 const paletteList = document.querySelector("#paletteList");
 const shapeSelect = document.querySelector("#shapeSelect");
 const elementFont = document.querySelector("#elementFont");
-const controls = [
-  editText,
-  fontSize,
-  boxWidth,
-  textColor,
-  bgColor,
-  bgAlpha,
-  shapeSelect,
-  elementFont,
-];
+const draftInput = document.querySelector("#draftInput");
+const controls = [editText, fontSize, boxWidth, textColor, bgColor, bgAlpha, shapeSelect, elementFont];
 
-const DRAFT_KEY = "xhs-collage-editor-draft-v2";
 const PAGE_W = 540;
 const PAGE_H = 720;
-const PAGE_BOTTOM = 688;
+const PAGE_BOTTOM = 670;
 const SHAPES = ["plain-block", "note", "highlight", "torn", "gray-strip", "soft-card", "underline"];
 const FONT_CLASSES = ["font-cute", "font-hand", "font-serif", "font-clean"];
 
-let selected = null;
+let selectedItems = new Set();
 let activePage = null;
 let zCounter = 20;
 let activePalette = "cream";
+let activeStyle = "cream";
+let suppressClickSelection = null;
 
 const palettes = {
   cream: {
@@ -99,12 +92,48 @@ function parseInput(text) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-  const top = lines[0] || "期末周 | 大考 | 能量恢复";
-  const title = lines[1] || "状态差自救指南";
-  const rest = lines.slice(2);
-  const list = rest.filter((line) => line.includes("=") || line.includes("："));
-  const paragraphs = rest.filter((line) => !list.includes(line));
-  return { top, title, paragraphs, list };
+  let title = "状态差自救指南";
+  let top = "小红书 Plog";
+  let rest = lines;
+  const titleLineIndex = lines.findIndex((line) => /^【标题】/.test(line));
+  if (titleLineIndex >= 0) {
+    title = lines[titleLineIndex].replace(/^【标题】\s*/, "").trim() || title;
+    top = "周末 Plog | 快乐实录";
+    rest = lines.filter((_, index) => index !== titleLineIndex);
+  } else {
+    top = lines[0] || top;
+    title = lines[1] || title;
+    rest = lines.slice(2);
+  }
+  return { top, title, blocks: normalizeBlocks(rest) };
+}
+
+function normalizeBlocks(lines) {
+  const blocks = [];
+  let currentHeading = "";
+  let currentLines = [];
+  lines.forEach((line) => {
+    if (isSectionHeading(line)) {
+      if (currentHeading || currentLines.length) {
+        blocks.push({ heading: currentHeading, body: currentLines.join("\n") });
+      }
+      currentHeading = line;
+      currentLines = [];
+    } else {
+      currentLines.push(line);
+    }
+  });
+  if (currentHeading || currentLines.length) {
+    blocks.push({ heading: currentHeading, body: currentLines.join("\n") });
+  }
+  if (!blocks.length) {
+    blocks.push({ heading: "", body: "停止思考，先去行动。不要复杂的想，拥抱变化，行动了大脑就会给你提供办法。" });
+  }
+  return blocks;
+}
+
+function isSectionHeading(line) {
+  return /^[\p{Extended_Pictographic}\p{Emoji_Presentation}]?[\uFE0F]?\s*[\u4e00-\u9fa5A-Za-z0-9]+[：:]/u.test(line);
 }
 
 function createPage() {
@@ -186,7 +215,11 @@ function makeInteractive(el) {
   el.addEventListener("pointerdown", startDrag);
   el.addEventListener("click", (event) => {
     event.stopPropagation();
-    select(el);
+    if (suppressClickSelection === el) {
+      suppressClickSelection = null;
+      return;
+    }
+    select(el, { add: event.ctrlKey || event.metaKey });
   });
 }
 
@@ -194,21 +227,31 @@ function startDrag(event) {
   const el = event.currentTarget;
   const page = el.closest(".poster");
   setActivePage(page);
-  select(el);
+  if (!selectedItems.has(el)) {
+    select(el, { add: event.ctrlKey || event.metaKey });
+    suppressClickSelection = el;
+  }
+  const dragged = [...selectedItems].filter((item) => item.closest(".poster") === page);
   const startX = event.clientX;
   const startY = event.clientY;
-  const rect = el.getBoundingClientRect();
   const posterRect = page.getBoundingClientRect();
   const scale = posterRect.width / PAGE_W;
-  const initialLeft = (rect.left - posterRect.left) / scale;
-  const initialTop = (rect.top - posterRect.top) / scale;
-
+  const starts = dragged.map((item) => {
+    const rect = item.getBoundingClientRect();
+    return {
+      item,
+      left: (rect.left - posterRect.left) / scale,
+      top: (rect.top - posterRect.top) / scale,
+    };
+  });
   el.setPointerCapture(event.pointerId);
   function move(moveEvent) {
-    const nextLeft = initialLeft + (moveEvent.clientX - startX) / scale;
-    const nextTop = initialTop + (moveEvent.clientY - startY) / scale;
-    el.style.left = `${Math.max(-20, Math.min(PAGE_W - 20, nextLeft))}px`;
-    el.style.top = `${Math.max(-20, Math.min(PAGE_H - 20, nextTop))}px`;
+    const dx = (moveEvent.clientX - startX) / scale;
+    const dy = (moveEvent.clientY - startY) / scale;
+    starts.forEach(({ item, left, top }) => {
+      item.style.left = `${Math.max(-20, Math.min(PAGE_W - 20, left + dx))}px`;
+      item.style.top = `${Math.max(-20, Math.min(PAGE_H - 20, top + dy))}px`;
+    });
   }
   function stop() {
     el.removeEventListener("pointermove", move);
@@ -220,20 +263,44 @@ function startDrag(event) {
   el.addEventListener("pointercancel", stop);
 }
 
-function select(el) {
-  if (selected) selected.classList.remove("selected");
-  selected = el;
-  selected.classList.add("selected");
-  setActivePage(selected.closest(".poster"));
-  statusText.textContent = "已选中元素，可拖拽或调整样式";
-  const isText = selected.classList.contains("text-item");
+function select(el, { add = false } = {}) {
+  if (!add) clearSelection(false);
+  if (add && selectedItems.has(el)) {
+    el.classList.remove("selected");
+    selectedItems.delete(el);
+  } else {
+    el.classList.add("selected");
+    selectedItems.add(el);
+  }
+  setActivePage(el.closest(".poster"));
+  syncControls();
+}
+
+function clearSelection(update = true) {
+  selectedItems.forEach((item) => item.classList.remove("selected"));
+  selectedItems.clear();
+  if (update) syncControls();
+}
+
+function syncControls() {
+  const selected = primarySelection();
+  const count = selectedItems.size;
+  statusText.textContent = count ? `已选中 ${count} 个元素，可拖拽或批量调整` : "选择元素后可在右侧调整";
+  const hasSelected = Boolean(selected);
   controls.forEach((control) => {
-    control.disabled = false;
+    control.disabled = !hasSelected;
   });
-  editText.disabled = !isText;
+  document.querySelector("#bringForward").disabled = !hasSelected;
+  document.querySelector("#deleteBtn").disabled = !hasSelected;
+  if (!selected) {
+    editText.value = "";
+    return;
+  }
+  const isText = selected.classList.contains("text-item");
+  editText.disabled = !isText || count > 1;
   shapeSelect.disabled = !isText;
   elementFont.disabled = !isText;
-  editText.value = isText ? selected.textContent : "";
+  editText.value = isText && count === 1 ? selected.textContent : "";
   fontSize.value = Math.min(parseInt(selected.style.fontSize, 10) || 28, Number(fontSize.max));
   boxWidth.value = Math.min(parseInt(selected.style.width, 10) || 220, Number(boxWidth.max));
   textColor.value = rgbToHex(selected.style.color) || currentPalette().ink;
@@ -241,26 +308,21 @@ function select(el) {
   bgAlpha.value = selected.dataset.bgAlpha || "0";
   shapeSelect.value = getElementShape(selected);
   elementFont.value = selected.dataset.fontPreset || "";
-  document.querySelector("#bringForward").disabled = false;
-  document.querySelector("#deleteBtn").disabled = false;
 }
 
-function clearSelection() {
-  if (selected) selected.classList.remove("selected");
-  selected = null;
-  statusText.textContent = "选择元素后可在右侧调整";
-  controls.forEach((control) => {
-    control.disabled = true;
-  });
-  document.querySelector("#bringForward").disabled = true;
-  document.querySelector("#deleteBtn").disabled = true;
+function primarySelection() {
+  return [...selectedItems][selectedItems.size - 1] || null;
+}
+
+function selectedTextItems() {
+  return [...selectedItems].filter((item) => item.classList.contains("text-item"));
 }
 
 function buildPoster() {
-  const { top, title, paragraphs, list } = parseInput(sourceText.value);
+  const { top, title, blocks } = parseInput(sourceText.value);
   const palette = currentPalette();
   pages.innerHTML = "";
-  selected = null;
+  clearSelection(false);
   zCounter = 20;
   let page = createPage();
   let y = 28;
@@ -268,133 +330,139 @@ function buildPoster() {
   const gap = 14;
   const contentWidth = 484;
 
-  const topH = estimateTextHeight(top, 24, contentWidth, 1.25, 16);
-  createText(top, "subtitle plain-block", {
+  const topEl = createText(top, "subtitle plain-block", {
     page,
     x: margin,
     y,
     w: contentWidth,
-    size: 24,
+    size: 21,
     color: palette.muted,
     z: 130,
   });
-  y += topH + 8;
+  y += renderedHeight(topEl) + 8;
 
-  const titleSize = fitTitleSize(title);
-  const titleH = estimateTextHeight(title, titleSize, contentWidth, 1.08, 24);
-  createText(title, "brush title-block gray-strip", {
+  const titleEl = createText(title, "brush title-block gray-strip", {
     page,
     x: 16,
     y,
     w: 508,
-    size: titleSize,
+    size: fitTitleSize(title),
     bg: palette.titleBg,
     alpha: 88,
     z: 200,
   });
-  y += titleH + 22;
+  y += renderedHeight(titleEl) + 22;
 
-  const blocks = [];
-  if (paragraphs[0]) blocks.push({ text: paragraphs[0], shape: "highlight", size: 25 });
-  paragraphs.slice(1).forEach((paragraph, index) => {
-    blocks.push({ text: paragraph, shape: index % 2 ? "plain-block" : "note", size: 21 });
-  });
-  if (list.length) blocks.push({ text: list.join("\n"), shape: "torn", size: list.length > 6 ? 21 : 24, width: 392, x: 74 });
-  if (!blocks.length) {
-    blocks.push({
-      text: "停止思考，先去行动。不要复杂的想，拥抱变化，行动了大脑就会给你提供办法。",
-      shape: "highlight",
-      size: 25,
-    });
-  }
-
-  splitOversizedBlocks(blocks).forEach((block) => {
-    const metrics = blockMetrics(block.text, block.shape, block.size, block.width || contentWidth);
-    if (y + metrics.height > PAGE_BOTTOM) {
-      addPageNumber(page);
-      page = createPage();
-      y = 34;
-      createText(`${title} / 续页`, "subtitle plain-block", {
+  const flowBlocks = makeFlowBlocks(blocks);
+  flowBlocks.forEach((block) => {
+    const chunks = splitTextToFit(block, page, PAGE_BOTTOM - 52);
+    chunks.forEach((chunk) => {
+      const measured = measureText(chunk.text, block.shape, {
         page,
-        x: margin,
-        y,
-        w: contentWidth,
-        size: 20,
-        color: palette.muted,
+        w: block.width || contentWidth,
+        size: block.size,
       });
-      y += 42;
-    }
-    createText(block.text, block.shape, {
-      page,
-      x: block.x || margin,
-      y,
-      w: block.width || contentWidth,
-      size: block.size,
-      bg: bgForShape(block.shape),
-      alpha: alphaForShape(block.shape),
+      if (y + measured > PAGE_BOTTOM) {
+        addPageNumber(page);
+        page = createPage();
+        y = 34;
+        const continued = createText(`${title} / 续页`, "subtitle plain-block", {
+          page,
+          x: margin,
+          y,
+          w: contentWidth,
+          size: 18,
+          color: palette.muted,
+        });
+        y += renderedHeight(continued) + 14;
+      }
+      const el = createText(chunk.text, block.shape, {
+        page,
+        x: block.x || margin,
+        y,
+        w: block.width || contentWidth,
+        size: block.size,
+        bg: bgForShape(block.shape),
+        alpha: alphaForShape(block.shape),
+      });
+      y += renderedHeight(el) + gap;
     });
-    y += metrics.height + gap;
   });
 
   addPageNumber(page);
   setActivePage(pages.querySelector(".poster"));
-  statusText.textContent = `已生成 ${pages.children.length} 页，内容过多会自动分页`;
+  syncControls();
+  statusText.textContent = `已生成 ${pages.children.length} 页，使用真实高度分页避免遮盖`;
 }
 
-function splitOversizedBlocks(blocks) {
-  const maxBlockHeight = 560;
-  return blocks.flatMap((block) => splitBlock(block, maxBlockHeight));
+function makeFlowBlocks(blocks) {
+  return blocks.flatMap((block, index) => {
+    const result = [];
+    if (block.heading) {
+      result.push({ text: block.heading, shape: index % 2 === 0 ? "highlight" : "gray-strip", size: 24 });
+    }
+    if (block.body) {
+      result.push({
+        text: block.body,
+        shape: index % 3 === 1 ? "soft-card" : index % 3 === 2 ? "plain-block" : "note",
+        size: 20,
+      });
+    }
+    return result;
+  });
 }
 
-function splitBlock(block, maxHeight) {
-  const width = block.width || 484;
-  if (blockMetrics(block.text, block.shape, block.size, width).height <= maxHeight) {
-    return [block];
+function splitTextToFit(block, page, maxHeight) {
+  if (measureText(block.text, block.shape, { page, w: block.width || 484, size: block.size }) <= maxHeight) {
+    return [{ text: block.text }];
   }
   const chunks = [];
   let current = "";
   tokenizeText(block.text).forEach((token) => {
     const next = current ? `${current}${token}` : token.trimStart();
-    if (current && blockMetrics(next, block.shape, block.size, width).height > maxHeight) {
-      chunks.push({ ...block, text: current.trim() });
+    if (current && measureText(next, block.shape, { page, w: block.width || 484, size: block.size }) > maxHeight) {
+      chunks.push({ text: current.trim() });
       current = token.trimStart();
     } else {
       current = next;
     }
   });
-  if (current.trim()) chunks.push({ ...block, text: current.trim() });
-  return chunks.length ? chunks : [block];
+  if (current.trim()) chunks.push({ text: current.trim() });
+  return chunks.length ? chunks : [{ text: block.text }];
 }
 
 function tokenizeText(text) {
-  const bySentence = text.match(/[^。！？!?；;\n]+[。！？!?；;\n]?/g);
-  if (bySentence && bySentence.length > 1) return bySentence;
-  const tokens = [];
-  for (let index = 0; index < text.length; index += 38) {
-    tokens.push(text.slice(index, index + 38));
-  }
-  return tokens;
+  const byLine = text.split("\n").flatMap((line) => {
+    const parts = line.match(/[^。！？!?；;，,]+[。！？!?；;，,]?/g) || [line];
+    return parts.map((part, index) => (index === parts.length - 1 ? `${part}\n` : part));
+  });
+  return byLine.length ? byLine : [text];
 }
 
-function blockMetrics(text, shape, size, width) {
-  const padding = shape === "torn" ? 44 : shape === "plain-block" || shape === "underline" ? 8 : 26;
-  const lineHeight = shape === "torn" ? 1.48 : 1.52;
-  return { height: estimateTextHeight(text, size, width, lineHeight, padding) };
+function measureText(text, shape, { page, w, size }) {
+  const probe = createText(text, shape, {
+    page,
+    x: -2000,
+    y: -2000,
+    w,
+    size,
+    bg: bgForShape(shape),
+    alpha: alphaForShape(shape),
+  });
+  const height = renderedHeight(probe);
+  probe.remove();
+  return height;
 }
 
-function estimateTextHeight(text, size, width, lineHeight = 1.45, padding = 0) {
-  const charsPerLine = Math.max(6, Math.floor(width / (size * 0.9)));
-  const lines = text
-    .split("\n")
-    .map((line) => Math.max(1, Math.ceil(line.length / charsPerLine)))
-    .reduce((sum, lineCount) => sum + lineCount, 0);
-  return Math.ceil(lines * size * lineHeight + padding);
+function renderedHeight(el) {
+  return Math.ceil(Math.max(el.scrollHeight, el.getBoundingClientRect().height));
 }
 
 function fitTitleSize(title) {
-  if (title.length <= 7) return 62;
-  if (title.length <= 10) return 54;
-  return 46;
+  if (title.length <= 9) return 56;
+  if (title.length <= 16) return 46;
+  if (title.length <= 24) return 38;
+  return 32;
 }
 
 function addPageNumber(page) {
@@ -408,6 +476,7 @@ function addPageNumber(page) {
   number.style.fontSize = "16px";
   number.style.color = currentPalette().muted;
   number.style.zIndex = "12";
+  makeInteractive(number);
   page.append(number);
 }
 
@@ -444,7 +513,6 @@ function exportOnePoster(poster, css, pageNo) {
     clone.style.margin = "0";
     clone.style.boxShadow = "none";
     clone.querySelectorAll(".selected").forEach((el) => el.classList.remove("selected"));
-
     const style = document.createElement("style");
     style.textContent = css;
     clone.prepend(style);
@@ -481,42 +549,56 @@ async function fetchCss() {
 
 function saveDraft() {
   const draft = {
+    version: 3,
     sourceText: sourceText.value,
     activePalette,
+    activeStyle,
     fontPreset: fontPreset.value,
     stylePreset: stylePreset.value,
     pagesHtml: pages.innerHTML,
   };
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  statusText.textContent = "草稿已保存到本机浏览器";
+  downloadTextFile(`xhs-draft-${Date.now()}.json`, JSON.stringify(draft, null, 2));
+  statusText.textContent = "草稿 JSON 文件已下载";
 }
 
-function loadDraft() {
-  const raw = localStorage.getItem(DRAFT_KEY);
-  if (!raw) {
-    statusText.textContent = "没有找到已保存草稿";
-    return;
-  }
-  const draft = JSON.parse(raw);
-  sourceText.value = draft.sourceText || sourceText.value;
-  activePalette = draft.activePalette || activePalette;
-  fontPreset.value = draft.fontPreset || fontPreset.value;
-  stylePreset.value = draft.stylePreset || activePalette;
-  pages.innerHTML = draft.pagesHtml || "";
-  restoreInteractiveItems();
-  renderPalettes();
-  document.querySelectorAll(".poster").forEach((page) => {
-    applyPosterTheme(page);
-    applyFontPreset(page);
-  });
-  setActivePage(pages.querySelector(".poster") || createPage());
-  statusText.textContent = "草稿已载入";
+function loadDraftFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const draft = JSON.parse(reader.result);
+      sourceText.value = draft.sourceText || sourceText.value;
+      activePalette = draft.activePalette || "cream";
+      activeStyle = draft.activeStyle || draft.stylePreset || activePalette;
+      stylePreset.value = activeStyle;
+      fontPreset.value = draft.fontPreset || palettes[activeStyle]?.font || fontPreset.value;
+      pages.innerHTML = draft.pagesHtml || "";
+      restoreInteractiveItems();
+      renderPalettes();
+      document.querySelectorAll(".poster").forEach((page) => {
+        applyPosterTheme(page);
+        applyFontPreset(page);
+      });
+      setActivePage(pages.querySelector(".poster") || createPage());
+      clearSelection();
+      statusText.textContent = "草稿文件已载入";
+    } catch {
+      statusText.textContent = "草稿文件格式不正确";
+    }
+  };
+  reader.readAsText(file);
+}
+
+function downloadTextFile(filename, text) {
+  const blob = new Blob([text], { type: "application/json" });
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 function restoreInteractiveItems() {
-  pages.querySelectorAll(".item").forEach((el) => {
-    makeInteractive(el);
-  });
+  pages.querySelectorAll(".item").forEach((el) => makeInteractive(el));
   pages.querySelectorAll(".poster").forEach((page) => {
     page.addEventListener("click", () => {
       setActivePage(page);
@@ -540,14 +622,13 @@ function renderPalettes() {
     ]
       .map((color) => `<span class="swatch" style="background:${color}"></span>`)
       .join("")}</span>`;
-    button.addEventListener("click", () => {
-      applyStylePreset(key);
-    });
+    button.addEventListener("click", () => applyPalettePreset(key));
     paletteList.append(button);
   });
 }
 
 function applyStylePreset(key) {
+  activeStyle = key;
   activePalette = key;
   stylePreset.value = key;
   fontPreset.value = currentPalette().font;
@@ -556,6 +637,13 @@ function applyStylePreset(key) {
     applyPosterTheme(page);
     applyFontPreset(page);
   });
+  applyPaletteToPoster();
+}
+
+function applyPalettePreset(key) {
+  activePalette = key;
+  renderPalettes();
+  document.querySelectorAll(".poster").forEach((page) => applyPosterTheme(page));
   applyPaletteToPoster();
 }
 
@@ -572,7 +660,7 @@ function applyPaletteToPoster() {
     }
     if (el.classList.contains("highlight")) setElementBg(el, palette.highlightBg, 76);
   });
-  if (selected) select(selected);
+  syncControls();
 }
 
 function applyPosterTheme(page) {
@@ -629,6 +717,25 @@ function setElementFont(el, font) {
   if (font) el.classList.add(`font-${font}`);
 }
 
+function duplicateSelection() {
+  const clones = [...selectedItems].map((item) => {
+    const clone = item.cloneNode(true);
+    clone.classList.remove("selected");
+    clone.style.left = `${(parseFloat(item.style.left) || 0) + 18}px`;
+    clone.style.top = `${(parseFloat(item.style.top) || 0) + 18}px`;
+    clone.style.zIndex = String(zCounter++);
+    makeInteractive(clone);
+    item.closest(".poster").append(clone);
+    return clone;
+  });
+  clearSelection(false);
+  clones.forEach((clone) => {
+    clone.classList.add("selected");
+    selectedItems.add(clone);
+  });
+  syncControls();
+}
+
 function updatePageStatus() {
   const posters = [...document.querySelectorAll(".poster")];
   const current = posters.indexOf(activePage) + 1 || 1;
@@ -665,9 +772,7 @@ document.querySelector("#addPageBtn").addEventListener("click", () => {
   createPage();
   statusText.textContent = "已添加空白页";
 });
-document.querySelector("#imageInput").addEventListener("change", (event) => {
-  addUploadedImages(event.target.files);
-});
+document.querySelector("#imageInput").addEventListener("change", (event) => addUploadedImages(event.target.files));
 document.querySelector("#addTextBtn").addEventListener("click", () => {
   createText("在右侧修改文字", "note", {
     x: 80,
@@ -690,49 +795,62 @@ document.querySelector("#addNoteBtn").addEventListener("click", () => {
 });
 document.querySelector("#exportBtn").addEventListener("click", exportPng);
 document.querySelector("#saveDraftBtn").addEventListener("click", saveDraft);
-document.querySelector("#loadDraftBtn").addEventListener("click", loadDraft);
+document.querySelector("#loadDraftBtn").addEventListener("click", () => draftInput.click());
+draftInput.addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (file) loadDraftFile(file);
+  draftInput.value = "";
+});
 document.querySelector("#bringForward").addEventListener("click", () => {
-  if (!selected) return;
-  const isTitle = selected.classList.contains("title-block");
-  selected.style.zIndex = String(isTitle ? 200 : Math.min(zCounter++, 190));
+  selectedItems.forEach((item) => {
+    const isTitle = item.classList.contains("title-block");
+    item.style.zIndex = String(isTitle ? 200 : Math.min(zCounter++, 190));
+  });
 });
 document.querySelector("#deleteBtn").addEventListener("click", () => {
-  if (!selected) return;
-  selected.remove();
+  selectedItems.forEach((item) => item.remove());
   clearSelection();
 });
 
 editText.addEventListener("input", () => {
-  if (selected) selected.textContent = editText.value;
+  const selected = primarySelection();
+  if (selected && selectedItems.size === 1) selected.textContent = editText.value;
 });
 fontSize.addEventListener("input", () => {
-  if (selected) selected.style.fontSize = `${fontSize.value}px`;
+  selectedItems.forEach((item) => {
+    item.style.fontSize = `${fontSize.value}px`;
+  });
 });
 boxWidth.addEventListener("input", () => {
-  if (selected) selected.style.width = `${boxWidth.value}px`;
+  selectedItems.forEach((item) => {
+    item.style.width = `${boxWidth.value}px`;
+  });
 });
 shapeSelect.addEventListener("change", () => {
-  if (selected) setElementShape(selected, shapeSelect.value);
+  selectedTextItems().forEach((item) => setElementShape(item, shapeSelect.value));
 });
 elementFont.addEventListener("change", () => {
-  if (selected) setElementFont(selected, elementFont.value);
+  selectedTextItems().forEach((item) => setElementFont(item, elementFont.value));
 });
 textColor.addEventListener("input", () => {
-  if (selected) selected.style.color = textColor.value;
+  selectedItems.forEach((item) => {
+    item.style.color = textColor.value;
+  });
 });
 bgColor.addEventListener("input", () => {
-  if (!selected) return;
-  setElementBg(selected, bgColor.value, Number(bgAlpha.value));
+  selectedItems.forEach((item) => setElementBg(item, bgColor.value, Number(bgAlpha.value)));
 });
 bgAlpha.addEventListener("input", () => {
-  if (!selected) return;
-  setElementBg(selected, bgColor.value, Number(bgAlpha.value));
+  selectedItems.forEach((item) => setElementBg(item, bgColor.value, Number(bgAlpha.value)));
 });
-fontPreset.addEventListener("change", () => {
-  applyFontPreset();
-});
-stylePreset.addEventListener("change", () => {
-  applyStylePreset(stylePreset.value);
+fontPreset.addEventListener("change", () => applyFontPreset());
+stylePreset.addEventListener("change", () => applyStylePreset(stylePreset.value));
+document.addEventListener("keydown", (event) => {
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && selectedItems.size) {
+    event.preventDefault();
+    duplicateSelection();
+  }
 });
 
 renderPalettes();

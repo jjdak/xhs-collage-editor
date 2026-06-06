@@ -292,7 +292,9 @@ input[type="color"] {
 }
 
 .item.selected {
-  box-shadow: 0 0 0 2px #1677ff;
+  box-shadow:
+    0 0 0 2px #1677ff,
+    0 6px 18px rgba(22, 119, 255, 0.14);
 }
 
 .text-item {
